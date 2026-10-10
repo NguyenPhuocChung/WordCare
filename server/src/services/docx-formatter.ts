@@ -1,4 +1,3 @@
-
 import JSZip from "jszip";
 import {
     DOMParser,
@@ -6,7 +5,6 @@ import {
     type Document as XmlDocument,
     type Element as XmlElement,
 } from "@xmldom/xmldom";
-
 
 export interface DocxFormattingRules {
     // Định dạng chữ và đoạn văn
@@ -49,6 +47,13 @@ export interface DocxFormattingRules {
 
 const W_NS =
     "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
+const REL_NS =
+    "http://schemas.openxmlformats.org/package/2006/relationships";
+const CONTENT_TYPES_NS =
+    "http://schemas.openxmlformats.org/package/2006/content-types";
+const R_NS =
+    "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
+const NUMBERING_NS = W_NS;
 
 const CM_TO_TWIPS = 1440 / 2.54;
 const PT_TO_TWIPS = 20;
@@ -86,9 +91,7 @@ function assertRules(rules: DocxFormattingRules): void {
 
     if (
         rules.alignment !== undefined &&
-        !["left", "center", "right", "justify"].includes(
-            rules.alignment,
-        )
+        !["left", "center", "right", "justify"].includes(rules.alignment)
     ) {
         throw new Error("Kiểu căn đoạn không hợp lệ.");
     }
@@ -102,14 +105,8 @@ function assertRules(rules: DocxFormattingRules): void {
         throw new Error("Giãn dòng phải từ 0,5 đến 5.");
     }
 
-    const paragraphKeys = [
-        "spaceBeforePt",
-        "spaceAfterPt",
-    ] as const;
-
-    for (const key of paragraphKeys) {
+    for (const key of ["spaceBeforePt", "spaceAfterPt"] as const) {
         const value = rules[key];
-
         if (
             value !== undefined &&
             (!Number.isFinite(value) || value < 0 || value > 1584)
@@ -118,17 +115,14 @@ function assertRules(rules: DocxFormattingRules): void {
         }
     }
 
-    const dimensionKeys = [
+    for (const key of [
         "firstLineIndentCm",
         "marginTopCm",
         "marginBottomCm",
         "marginLeftCm",
         "marginRightCm",
-    ] as const;
-
-    for (const key of dimensionKeys) {
+    ] as const) {
         const value = rules[key];
-
         if (
             value !== undefined &&
             (!Number.isFinite(value) || value < 0 || value > 10)
@@ -136,28 +130,24 @@ function assertRules(rules: DocxFormattingRules): void {
             throw new Error(`${key} phải nằm trong khoảng 0–10 cm.`);
         }
     }
-    // Kiểm tra tùy chọn đánh số trang
+
     if (rules.pageNumbering !== undefined) {
         const page = rules.pageNumbering;
-
         if (typeof page.enabled !== "boolean") {
             throw new Error("Tùy chọn đánh số trang không hợp lệ.");
         }
-
         if (
             page.position !== undefined &&
             !["header", "footer"].includes(page.position)
         ) {
             throw new Error("Vị trí đánh số trang không hợp lệ.");
         }
-
         if (
             page.alignment !== undefined &&
             !["left", "center", "right"].includes(page.alignment)
         ) {
             throw new Error("Căn lề số trang không hợp lệ.");
         }
-
         if (
             page.startAt !== undefined &&
             (!Number.isInteger(page.startAt) ||
@@ -166,7 +156,6 @@ function assertRules(rules: DocxFormattingRules): void {
         ) {
             throw new Error("Số trang bắt đầu phải từ 1 đến 32767.");
         }
-
         if (
             page.hideFirstPage !== undefined &&
             typeof page.hideFirstPage !== "boolean"
@@ -175,14 +164,11 @@ function assertRules(rules: DocxFormattingRules): void {
         }
     }
 
-    // Kiểm tra tùy chọn đánh số tiêu đề
     if (rules.headingNumbering !== undefined) {
         const heading = rules.headingNumbering;
-
         if (typeof heading.enabled !== "boolean") {
             throw new Error("Tùy chọn đánh số tiêu đề không hợp lệ.");
         }
-
         if (
             heading.maxLevel !== undefined &&
             ![1, 2, 3].includes(heading.maxLevel)
@@ -191,21 +177,17 @@ function assertRules(rules: DocxFormattingRules): void {
         }
     }
 
-    // Kiểm tra tùy chọn mục lục
     if (rules.tableOfContents !== undefined) {
         const toc = rules.tableOfContents;
-
         if (typeof toc.enabled !== "boolean") {
             throw new Error("Tùy chọn mục lục không hợp lệ.");
         }
-
         if (
             toc.maxLevel !== undefined &&
             ![1, 2, 3].includes(toc.maxLevel)
         ) {
             throw new Error("Cấp mục lục phải là 1, 2 hoặc 3.");
         }
-
         if (
             toc.title !== undefined &&
             (typeof toc.title !== "string" ||
@@ -217,25 +199,14 @@ function assertRules(rules: DocxFormattingRules): void {
     }
 }
 
-
-function parseXml(
-    xml: string,
-    partName: string,
-): XmlDocument {
-    const doc = new DOMParser().parseFromString(
-        xml,
-        "application/xml",
-    );
-
+function parseXml(xml: string, partName: string): XmlDocument {
+    const doc = new DOMParser().parseFromString(xml, "application/xml");
     const parserErrors = doc.getElementsByTagName("parsererror");
-
     if (!doc.documentElement || parserErrors.length > 0) {
         throw new Error(`XML không hợp lệ: ${partName}`);
     }
-
     return doc;
 }
-
 
 function elementsByTag(
     root: XmlDocument | XmlElement,
@@ -243,12 +214,10 @@ function elementsByTag(
 ): XmlElement[] {
     const nodes = root.getElementsByTagNameNS(W_NS, localName);
     const result: XmlElement[] = [];
-
     for (let i = 0; i < nodes.length; i++) {
-        const element = nodes.item(i);
-        if (element) result.push(element as XmlElement);
+        const el = nodes.item(i);
+        if (el) result.push(el as XmlElement);
     }
-
     return result;
 }
 
@@ -258,7 +227,6 @@ function directChild(
 ): XmlElement | null {
     for (let i = 0; i < parent.childNodes.length; i++) {
         const node = parent.childNodes.item(i);
-
         if (
             node?.nodeType === 1 &&
             (node as XmlElement).namespaceURI === W_NS &&
@@ -267,21 +235,12 @@ function directChild(
             return node as XmlElement;
         }
     }
-
     return null;
 }
 
-/**
- * Giữ thứ tự phần tử phổ biến theo cấu trúc WordprocessingML.
- * Các phần tử chưa biết thứ tự sẽ được giữ lại, không bị xóa.
- */
 const CHILD_ORDER: Record<string, string[]> = {
-    p: [
-        "pPr",
-    ],
-    r: [
-        "rPr",
-    ],
+    p: ["pPr"],
+    r: ["rPr"],
     pPr: [
         "pStyle",
         "keepNext",
@@ -363,6 +322,8 @@ const CHILD_ORDER: Record<string, string[]> = {
         "rPrChange",
     ],
     sectPr: [
+        "headerReference",
+        "footerReference",
         "footnotePr",
         "endnotePr",
         "type",
@@ -386,34 +347,29 @@ const CHILD_ORDER: Record<string, string[]> = {
     ],
 };
 
-
 function insertInSchemaOrder(
     parent: XmlElement,
     element: XmlElement,
 ): void {
     const parentName = parent.localName;
-
     if (!parentName) {
         parent.appendChild(element);
         return;
     }
 
     const order = CHILD_ORDER[parentName];
-
     if (!order) {
         parent.appendChild(element);
         return;
     }
 
     const elementName = element.localName;
-
     if (!elementName) {
         parent.appendChild(element);
         return;
     }
 
     const newIndex = order.indexOf(elementName);
-
     if (newIndex < 0) {
         parent.appendChild(element);
         return;
@@ -421,19 +377,15 @@ function insertInSchemaOrder(
 
     for (let i = 0; i < parent.childNodes.length; i++) {
         const node = parent.childNodes.item(i);
-
         if (node?.nodeType !== 1) continue;
 
         const sibling = node as XmlElement;
-
         if (sibling === element) continue;
 
         const siblingName = sibling.localName;
-
         if (!siblingName) continue;
 
         const siblingIndex = order.indexOf(siblingName);
-
         if (siblingIndex >= 0 && siblingIndex > newIndex) {
             parent.insertBefore(element, sibling);
             return;
@@ -453,16 +405,19 @@ function getOrCreateChild(
 
     const element = doc.createElementNS(W_NS, `w:${localName}`);
     insertInSchemaOrder(parent, element);
-
     return element;
 }
 
+/** Ghi thuộc tính w: ổn định với xmldom */
 function setWAttribute(
     element: XmlElement,
     name: string,
     value: string,
 ): void {
-    element.setAttributeNS(W_NS, `w:${name}`, value);
+    element.setAttribute(`w:${name}`, value);
+    if (element.hasAttribute(name)) {
+        element.removeAttribute(name);
+    }
 }
 
 function setChildValue(
@@ -475,6 +430,21 @@ function setChildValue(
     setWAttribute(child, "val", value);
 }
 
+function removeThemeFontAttributes(fonts: XmlElement): void {
+    const themeAttrs = [
+        "asciiTheme",
+        "hAnsiTheme",
+        "eastAsiaTheme",
+        "cstheme",
+        "csTheme",
+    ];
+    for (const attr of themeAttrs) {
+        fonts.removeAttribute(`w:${attr}`);
+        fonts.removeAttributeNS(W_NS, attr);
+        fonts.removeAttribute(attr);
+    }
+}
+
 function applyRunFormatting(
     doc: XmlDocument,
     runProperties: XmlElement,
@@ -482,23 +452,52 @@ function applyRunFormatting(
 ): void {
     if (rules.fontName !== undefined) {
         const fonts = getOrCreateChild(doc, runProperties, "rFonts");
+        removeThemeFontAttributes(fonts);
 
-        for (const attribute of [
-            "ascii",
-            "hAnsi",
-            "eastAsia",
-            "cs",
-        ]) {
+        for (const attribute of ["ascii", "hAnsi", "eastAsia", "cs"]) {
             setWAttribute(fonts, attribute, rules.fontName);
         }
     }
 
     if (rules.fontSize !== undefined) {
         const halfPoints = String(Math.round(rules.fontSize * 2));
-
         setChildValue(doc, runProperties, "sz", halfPoints);
         setChildValue(doc, runProperties, "szCs", halfPoints);
     }
+}
+
+/** Áp font/size cho mọi run trong đoạn (kể cả hyperlink, sdt…) */
+function applyRunFormattingToParagraph(
+    doc: XmlDocument,
+    paragraph: XmlElement,
+    rules: DocxFormattingRules,
+): void {
+    function visit(element: XmlElement): void {
+        for (let i = 0; i < element.childNodes.length; i++) {
+            const node = element.childNodes.item(i);
+            if (
+                !node ||
+                node.nodeType !== 1 ||
+                (node as XmlElement).namespaceURI !== W_NS
+            ) {
+                continue;
+            }
+
+            const child = node as XmlElement;
+
+            if (child.localName === "p") continue;
+
+            if (child.localName === "r") {
+                const rPr = getOrCreateChild(doc, child, "rPr");
+                applyRunFormatting(doc, rPr, rules);
+                continue;
+            }
+
+            visit(child);
+        }
+    }
+
+    visit(paragraph);
 }
 
 function applyParagraphFormatting(
@@ -514,22 +513,18 @@ function applyParagraphFormatting(
 
     if (rules.firstLineIndentCm !== undefined) {
         const ind = getOrCreateChild(doc, pPr, "ind");
-
-        setWAttribute(
-            ind,
-            "firstLine",
-            cmToTwips(rules.firstLineIndentCm),
-        );
-
+        setWAttribute(ind, "firstLine", cmToTwips(rules.firstLineIndentCm));
+        ind.removeAttribute(`w:hanging`);
         ind.removeAttributeNS(W_NS, "hanging");
+        ind.removeAttribute("hanging");
     }
 
-    const hasSpacingRules =
+    const hasSpacing =
         rules.lineSpacing !== undefined ||
         rules.spaceBeforePt !== undefined ||
         rules.spaceAfterPt !== undefined;
 
-    if (hasSpacingRules) {
+    if (hasSpacing) {
         const spacing = getOrCreateChild(doc, pPr, "spacing");
 
         if (rules.lineSpacing !== undefined) {
@@ -538,7 +533,6 @@ function applyParagraphFormatting(
                 "line",
                 String(Math.round(rules.lineSpacing * 240)),
             );
-
             setWAttribute(spacing, "lineRule", "auto");
         }
 
@@ -571,14 +565,10 @@ function applyPageMargins(
         ["marginRightCm", "right"],
     ] as const;
 
-    const hasMarginRules = marginRules.some(
-        ([key]) => rules[key] !== undefined,
-    );
-
-    if (!hasMarginRules) return;
+    const hasMargin = marginRules.some(([key]) => rules[key] !== undefined);
+    if (!hasMargin) return;
 
     const sections = elementsByTag(doc, "sectPr");
-
     if (sections.length === 0) {
         throw new Error(
             "Không tìm thấy cấu hình trang (sectPr) trong tài liệu Word.",
@@ -587,26 +577,89 @@ function applyPageMargins(
 
     for (const sectPr of sections) {
         const pgMar = getOrCreateChild(doc, sectPr, "pgMar");
-
         for (const [ruleKey, attribute] of marginRules) {
             const value = rules[ruleKey];
-
             if (value !== undefined) {
                 setWAttribute(pgMar, attribute, cmToTwips(value));
             }
         }
     }
 }
-const REL_NS =
-    "http://schemas.openxmlformats.org/package/2006/relationships";
 
-const CONTENT_TYPES_NS =
-    "http://schemas.openxmlformats.org/package/2006/content-types";
+/**
+ * Ghi đè styles.xml: docDefaults + Normal + Heading + xóa toàn bộ theme font.
+ */
+async function applyDefaultStyles(
+    zip: JSZip,
+    rules: DocxFormattingRules,
+): Promise<void> {
+    if (rules.fontName === undefined && rules.fontSize === undefined) {
+        return;
+    }
 
-const XMLNS_NS = "http://www.w3.org/2000/xmlns/";
+    const stylesPath = "word/styles.xml";
+    const stylesFile = zip.file(stylesPath);
+    if (!stylesFile) return;
 
-const R_NS =
-    "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
+    const stylesDoc = parseXml(
+        await stylesFile.async("string"),
+        stylesPath,
+    );
+
+    const runRules: DocxFormattingRules = {
+        fontName: rules.fontName,
+        fontSize: rules.fontSize,
+    };
+
+    // 1. docDefaults
+    const docDefaultsList = elementsByTag(stylesDoc, "docDefaults");
+    if (docDefaultsList.length > 0) {
+        const docDefaults = docDefaultsList[0];
+        const rPrDefault = getOrCreateChild(
+            stylesDoc,
+            docDefaults,
+            "rPrDefault",
+        );
+        const rPr = getOrCreateChild(stylesDoc, rPrDefault, "rPr");
+        applyRunFormatting(stylesDoc, rPr, runRules);
+    }
+
+    // 2. Style Normal + Heading 1-9
+    const styles = elementsByTag(stylesDoc, "style");
+    for (const style of styles) {
+        const styleId = getAttributeByLocalName(style, "styleId") ?? "";
+        const isNormal = styleId.toLowerCase() === "normal";
+        const isHeading = /^Heading[1-9]$/i.test(styleId);
+        if (!isNormal && !isHeading) continue;
+
+        const rPr = getOrCreateChild(stylesDoc, style, "rPr");
+        applyRunFormatting(stylesDoc, rPr, runRules);
+    }
+
+    // 3. Xóa theme + ép font trên MỌI rFonts trong styles.xml
+    if (rules.fontName !== undefined) {
+        const allFonts = elementsByTag(stylesDoc, "rFonts");
+        for (const fonts of allFonts) {
+            removeThemeFontAttributes(fonts);
+            for (const attribute of ["ascii", "hAnsi", "eastAsia", "cs"]) {
+                setWAttribute(fonts, attribute, rules.fontName);
+            }
+        }
+    }
+
+    // 4. Ép size trên mọi sz / szCs trong styles (để đồng bộ)
+    if (rules.fontSize !== undefined) {
+        const halfPoints = String(Math.round(rules.fontSize * 2));
+        for (const sz of elementsByTag(stylesDoc, "sz")) {
+            setWAttribute(sz, "val", halfPoints);
+        }
+        for (const sz of elementsByTag(stylesDoc, "szCs")) {
+            setWAttribute(sz, "val", halfPoints);
+        }
+    }
+
+    zip.file(stylesPath, serializeXml(stylesDoc));
+}
 
 function createXmlDocument(
     rootName: string,
@@ -616,31 +669,22 @@ function createXmlDocument(
         `<root xmlns="${namespace}"/>`,
         "application/xml",
     );
-
     const oldRoot = doc.documentElement;
-
-    if (!oldRoot) {
-        throw new Error("Không thể tạo XML document.");
-    }
+    if (!oldRoot) throw new Error("Không thể tạo XML document.");
 
     const element = doc.createElementNS(namespace, rootName);
-
     doc.replaceChild(element, oldRoot);
-
     return doc;
 }
+
 function getAttributeByLocalName(
     element: XmlElement,
     localName: string,
 ): string | null {
     for (let i = 0; i < element.attributes.length; i++) {
-        const attribute = element.attributes.item(i);
-
-        if (attribute?.localName === localName) {
-            return attribute.value;
-        }
+        const attr = element.attributes.item(i);
+        if (attr?.localName === localName) return attr.value;
     }
-
     return null;
 }
 
@@ -656,49 +700,31 @@ function getOrCreatePackageRelationship(
     );
 
     for (let i = 0; i < relationships.length; i++) {
-        const relationship = relationships.item(i) as XmlElement | null;
-
+        const rel = relationships.item(i) as XmlElement | null;
         if (
-            relationship &&
-            relationship.getAttribute("Type") === type &&
-            relationship.getAttribute("Target") === target
+            rel &&
+            rel.getAttribute("Type") === type &&
+            rel.getAttribute("Target") === target
         ) {
-            const existingId = relationship.getAttribute("Id");
-
-            if (existingId) {
-                return existingId;
-            }
+            const id = rel.getAttribute("Id");
+            if (id) return id;
         }
     }
 
     let index = 1;
     const usedIds = new Set<string>();
-
     for (let i = 0; i < relationships.length; i++) {
-        const relationship = relationships.item(i) as XmlElement | null;
-
-        if (relationship) {
-            const relationshipId = relationship.getAttribute("Id");
-
-            if (relationshipId) {
-                usedIds.add(relationshipId);
-            }
-        }
+        const rel = relationships.item(i) as XmlElement | null;
+        const id = rel?.getAttribute("Id");
+        if (id) usedIds.add(id);
     }
 
-    while (usedIds.has(`rId${index}`)) {
-        index++;
-    }
+    while (usedIds.has(`rId${index}`)) index++;
 
-    const relationship = doc.createElementNS(
-        REL_NS,
-        "Relationship",
-    );
-
+    const relationship = doc.createElementNS(REL_NS, "Relationship");
     relationship.setAttribute("Id", `rId${index}`);
     relationship.setAttribute("Type", type);
     relationship.setAttribute("Target", target);
-
     root.appendChild(relationship);
 
     return `rId${index}`;
@@ -717,21 +743,15 @@ function ensureContentTypeOverride(
 
     for (let i = 0; i < overrides.length; i++) {
         const override = overrides.item(i) as XmlElement | null;
-
         if (override?.getAttribute("PartName") === partName) {
             override.setAttribute("ContentType", contentType);
             return;
         }
     }
 
-    const override = doc.createElementNS(
-        CONTENT_TYPES_NS,
-        "Override",
-    );
-
+    const override = doc.createElementNS(CONTENT_TYPES_NS, "Override");
     override.setAttribute("PartName", partName);
     override.setAttribute("ContentType", contentType);
-
     root.appendChild(override);
 }
 
@@ -739,15 +759,12 @@ function createPageNumberPart(
     partType: "header" | "footer",
     alignment: "left" | "center" | "right",
 ): string {
-    const jc = alignment;
-
     const rootName = partType === "header" ? "hdr" : "ftr";
-
     return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:${rootName} xmlns:w="${W_NS}">
   <w:p>
     <w:pPr>
-      <w:jc w:val="${jc}"/>
+      <w:jc w:val="${alignment}"/>
     </w:pPr>
     <w:r>
       <w:fldChar w:fldCharType="begin"/>
@@ -761,13 +778,13 @@ function createPageNumberPart(
   </w:p>
 </w:${rootName}>`;
 }
+
 async function applyPageNumbering(
     zip: JSZip,
     document: XmlDocument,
     rules: DocxFormattingRules,
 ): Promise<void> {
     const options = rules.pageNumbering;
-
     if (!options?.enabled) return;
 
     const position = options.position ?? "footer";
@@ -775,7 +792,6 @@ async function applyPageNumbering(
     const partName = position === "header" ? "header1.xml" : "footer1.xml";
     const partPath = `word/${partName}`;
 
-    // Đọc document relationships hoặc tạo mới.
     const relsPath = "word/_rels/document.xml.rels";
     const relsFile = zip.file(relsPath);
 
@@ -784,10 +800,7 @@ async function applyPageNumbering(
         : createXmlDocument("Relationships", REL_NS);
 
     const relsRoot = relsDoc.documentElement;
-
-    if (!relsRoot) {
-        throw new Error("Không thể đọc document relationships.");
-    }
+    if (!relsRoot) throw new Error("Không thể đọc document relationships.");
 
     const relationshipType =
         position === "header"
@@ -802,29 +815,15 @@ async function applyPageNumbering(
     );
 
     zip.file(relsPath, serializeXml(relsDoc));
+    zip.file(partPath, createPageNumberPart(position, alignment));
 
-    // Tạo header/footer chứa trường PAGE.
-    const partXml = createPageNumberPart(position, alignment);
-    zip.file(partPath, partXml);
-
-    // Đăng ký loại nội dung.
     const typesPath = "[Content_Types].xml";
     const typesFile = zip.file(typesPath);
+    if (!typesFile) throw new Error("DOCX thiếu [Content_Types].xml.");
 
-    if (!typesFile) {
-        throw new Error("DOCX thiếu [Content_Types].xml.");
-    }
-
-    const typesDoc = parseXml(
-        await typesFile.async("string"),
-        typesPath,
-    );
-
+    const typesDoc = parseXml(await typesFile.async("string"), typesPath);
     const typesRoot = typesDoc.documentElement;
-
-    if (!typesRoot) {
-        throw new Error("Không thể đọc Content Types.");
-    }
+    if (!typesRoot) throw new Error("Không thể đọc Content Types.");
 
     ensureContentTypeOverride(
         typesDoc,
@@ -834,29 +833,27 @@ async function applyPageNumbering(
             ? "application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"
             : "application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml",
     );
-
     zip.file(typesPath, serializeXml(typesDoc));
 
-    // Gắn header/footer vào từng section.
     const sections = elementsByTag(document, "sectPr");
-
     if (sections.length === 0) {
         throw new Error("Không tìm thấy section trong tài liệu Word.");
     }
 
-    const referenceName = position === "header" ? "headerReference" : "footerReference";
+    const referenceName =
+        position === "header" ? "headerReference" : "footerReference";
 
     for (const section of sections) {
         let reference = directChild(section, referenceName);
-
         if (!reference) {
             reference = document.createElementNS(
                 W_NS,
                 `w:${referenceName}`,
             );
-
-            // headerReference/footerReference phải đứng trước pgSz, pgMar...
-            section.insertBefore(reference, section.firstChild);
+            // headerReference / footerReference phải đứng trước pgSz, pgMar…
+            const first = section.firstChild;
+            if (first) section.insertBefore(reference, first);
+            else section.appendChild(reference);
         }
 
         setWAttribute(reference, "type", "default");
@@ -867,47 +864,39 @@ async function applyPageNumbering(
         }
 
         if (options.startAt !== undefined) {
-            const pgNumType = getOrCreateChild(document, section, "pgNumType");
+            const pgNumType = getOrCreateChild(
+                document,
+                section,
+                "pgNumType",
+            );
             setWAttribute(pgNumType, "start", String(options.startAt));
         }
     }
 
-    // Bật cập nhật trường khi mở tài liệu.
+    // Bật cập nhật field khi mở file
     const settingsPath = "word/settings.xml";
     const settingsFile = zip.file(settingsPath);
-
     if (settingsFile) {
         const settingsDoc = parseXml(
             await settingsFile.async("string"),
             settingsPath,
         );
-
         const settingsRoot = settingsDoc.documentElement;
-
         if (settingsRoot) {
             const updateFields = getOrCreateChild(
                 settingsDoc,
                 settingsRoot,
                 "updateFields",
             );
-
             setWAttribute(updateFields, "val", "true");
             zip.file(settingsPath, serializeXml(settingsDoc));
         }
     }
 
-    // Với section đầu tiên, titlePg sẽ giúp Word ẩn header/footer
-    // trên trang đầu khi hideFirstPage được bật.
-    if (options.hideFirstPage) {
-        const firstSection = sections[0];
-
-        if (firstSection) {
-            getOrCreateChild(document, firstSection, "titlePg");
-        }
+    if (options.hideFirstPage && sections[0]) {
+        getOrCreateChild(document, sections[0], "titlePg");
     }
 }
-const NUMBERING_NS =
-    "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
 
 function createHeadingNumberingXml(): string {
     return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -919,21 +908,30 @@ function createHeadingNumberingXml(): string {
       <w:numFmt w:val="decimal"/>
       <w:lvlText w:val="%1."/>
       <w:lvlJc w:val="left"/>
-      <w:pPr><w:tabs><w:tab w:val="num" w:pos="720"/></w:tabs><w:ind w:left="720" w:hanging="360"/></w:pPr>
+      <w:pPr>
+        <w:tabs><w:tab w:val="num" w:pos="720"/></w:tabs>
+        <w:ind w:left="720" w:hanging="360"/>
+      </w:pPr>
     </w:lvl>
     <w:lvl w:ilvl="1">
       <w:start w:val="1"/>
       <w:numFmt w:val="decimal"/>
       <w:lvlText w:val="%1.%2"/>
       <w:lvlJc w:val="left"/>
-      <w:pPr><w:tabs><w:tab w:val="num" w:pos="1080"/></w:tabs><w:ind w:left="1080" w:hanging="360"/></w:pPr>
+      <w:pPr>
+        <w:tabs><w:tab w:val="num" w:pos="1080"/></w:tabs>
+        <w:ind w:left="1080" w:hanging="360"/>
+      </w:pPr>
     </w:lvl>
     <w:lvl w:ilvl="2">
       <w:start w:val="1"/>
       <w:numFmt w:val="decimal"/>
       <w:lvlText w:val="%1.%2.%3"/>
       <w:lvlJc w:val="left"/>
-      <w:pPr><w:tabs><w:tab w:val="num" w:pos="1440"/></w:tabs><w:ind w:left="1440" w:hanging="360"/></w:pPr>
+      <w:pPr>
+        <w:tabs><w:tab w:val="num" w:pos="1440"/></w:tabs>
+        <w:ind w:left="1440" w:hanging="360"/>
+      </w:pPr>
     </w:lvl>
   </w:abstractNum>
   <w:num w:numId="99">
@@ -948,14 +946,12 @@ async function applyHeadingNumbering(
     rules: DocxFormattingRules,
 ): Promise<void> {
     const options = rules.headingNumbering;
-
     if (!options?.enabled) return;
 
     const numberingPath = "word/numbering.xml";
     const numberingFile = zip.file(numberingPath);
 
     let numberingDoc: XmlDocument;
-
     if (numberingFile) {
         numberingDoc = parseXml(
             await numberingFile.async("string"),
@@ -969,46 +965,29 @@ async function applyHeadingNumbering(
     }
 
     const numberingRoot = numberingDoc.documentElement;
-
     if (!numberingRoot) {
         throw new Error("Không thể tạo cấu hình đánh số tiêu đề.");
     }
 
-    // Tìm ID chưa sử dụng để tránh xung đột với numbering có sẵn.
-    const existingNums = elementsByTag(numberingDoc, "num");
+    // Tìm numId / abstractNumId chưa dùng
     let numId = 1;
-
-    for (const num of existingNums) {
-        const value = getAttributeByLocalName(num, "numId");
-
-        if (value && Number(value) >= numId) {
-            numId = Number(value) + 1;
-        }
+    for (const num of elementsByTag(numberingDoc, "num")) {
+        const v = getAttributeByLocalName(num, "numId");
+        if (v && Number(v) >= numId) numId = Number(v) + 1;
     }
 
-    const existingAbstractNums = elementsByTag(numberingDoc, "abstractNum");
     let abstractNumId = 1;
-
-    for (const abstractNum of existingAbstractNums) {
-        const value = getAttributeByLocalName(abstractNum, "abstractNumId");
-
-        if (value && Number(value) >= abstractNumId) {
-            abstractNumId = Number(value) + 1;
-        }
+    for (const abs of elementsByTag(numberingDoc, "abstractNum")) {
+        const v = getAttributeByLocalName(abs, "abstractNumId");
+        if (v && Number(v) >= abstractNumId) abstractNumId = Number(v) + 1;
     }
 
     const generatedXml = parseXml(
         createHeadingNumberingXml(),
         numberingPath,
     );
-
-    const generatedRoot = generatedXml.documentElement;
-
-    if (!generatedRoot) {
-        throw new Error("Không thể tạo mẫu đánh số tiêu đề.");
-    }
-
-    const abstractNumTemplate = elementsByTag(generatedXml, "abstractNum")[0];
+    const abstractNumTemplate =
+        elementsByTag(generatedXml, "abstractNum")[0];
     const numTemplate = elementsByTag(generatedXml, "num")[0];
 
     if (!abstractNumTemplate || !numTemplate) {
@@ -1019,14 +998,12 @@ async function applyHeadingNumbering(
         abstractNumTemplate,
         true,
     ) as XmlElement;
-
     setWAttribute(abstractNum, "abstractNumId", String(abstractNumId));
 
     const num = numberingDoc.importNode(numTemplate, true) as XmlElement;
     setWAttribute(num, "numId", String(numId));
 
     const abstractIdChild = directChild(num, "abstractNumId");
-
     if (abstractIdChild) {
         setWAttribute(abstractIdChild, "val", String(abstractNumId));
     }
@@ -1034,26 +1011,20 @@ async function applyHeadingNumbering(
     numberingRoot.appendChild(abstractNum);
     numberingRoot.appendChild(num);
 
-    // Áp dụng cho các đoạn có style Heading1/Heading2/Heading3.
+    // Gắn numbering vào các đoạn Heading1/2/3
     const maxLevel = options.maxLevel ?? 3;
-    const paragraphs = elementsByTag(document, "p");
-
-    for (const paragraph of paragraphs) {
+    for (const paragraph of elementsByTag(document, "p")) {
         const pPr = directChild(paragraph, "pPr");
         const pStyle = pPr ? directChild(pPr, "pStyle") : null;
-
         if (!pStyle) continue;
 
         const styleValue = getAttributeByLocalName(pStyle, "val");
-
         if (!styleValue) continue;
 
         const match = styleValue.match(/^Heading([1-3])$/i);
-
         if (!match) continue;
 
         const level = Number(match[1]);
-
         if (level > maxLevel) continue;
 
         const paragraphProperties = getOrCreateChild(
@@ -1061,39 +1032,29 @@ async function applyHeadingNumbering(
             paragraph,
             "pPr",
         );
-
         const numPr = getOrCreateChild(
             document,
             paragraphProperties,
             "numPr",
         );
-
         setChildValue(document, numPr, "ilvl", String(level - 1));
         setChildValue(document, numPr, "numId", String(numId));
     }
 
     zip.file(numberingPath, serializeXml(numberingDoc));
 
-    // Đăng ký relationship đến numbering.xml nếu chưa có.
+    // Relationship
     const relsPath = "word/_rels/document.xml.rels";
     const relsFile = zip.file(relsPath);
-
     if (!relsFile) {
         throw new Error(
             "Không tìm thấy document.xml.rels để đăng ký numbering.",
         );
     }
 
-    const relsDoc = parseXml(
-        await relsFile.async("string"),
-        relsPath,
-    );
-
+    const relsDoc = parseXml(await relsFile.async("string"), relsPath);
     const relsRoot = relsDoc.documentElement;
-
-    if (!relsRoot) {
-        throw new Error("Không thể đọc document relationships.");
-    }
+    if (!relsRoot) throw new Error("Không thể đọc document relationships.");
 
     getOrCreatePackageRelationship(
         relsDoc,
@@ -1101,26 +1062,16 @@ async function applyHeadingNumbering(
         "http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering",
         "numbering.xml",
     );
-
     zip.file(relsPath, serializeXml(relsDoc));
 
+    // Content type
     const typesPath = "[Content_Types].xml";
     const typesFile = zip.file(typesPath);
+    if (!typesFile) throw new Error("DOCX thiếu [Content_Types].xml.");
 
-    if (!typesFile) {
-        throw new Error("DOCX thiếu [Content_Types].xml.");
-    }
-
-    const typesDoc = parseXml(
-        await typesFile.async("string"),
-        typesPath,
-    );
-
+    const typesDoc = parseXml(await typesFile.async("string"), typesPath);
     const typesRoot = typesDoc.documentElement;
-
-    if (!typesRoot) {
-        throw new Error("Không thể đọc Content Types.");
-    }
+    if (!typesRoot) throw new Error("Không thể đọc Content Types.");
 
     ensureContentTypeOverride(
         typesDoc,
@@ -1128,7 +1079,6 @@ async function applyHeadingNumbering(
         "/word/numbering.xml",
         "application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml",
     );
-
     zip.file(typesPath, serializeXml(typesDoc));
 }
 
@@ -1143,7 +1093,6 @@ function createTableOfContentsParagraphs(
     const titleParagraph = doc.createElementNS(W_NS, "w:p");
     const titlePPr = doc.createElementNS(W_NS, "w:pPr");
     const titleStyle = doc.createElementNS(W_NS, "w:pStyle");
-
     setWAttribute(titleStyle, "val", "Title");
     titlePPr.appendChild(titleStyle);
     titleParagraph.appendChild(titlePPr);
@@ -1151,44 +1100,44 @@ function createTableOfContentsParagraphs(
     const titleRun = doc.createElementNS(W_NS, "w:r");
     const titleText = doc.createElementNS(W_NS, "w:t");
     titleText.appendChild(doc.createTextNode(title));
-
     titleRun.appendChild(titleText);
     titleParagraph.appendChild(titleRun);
     paragraphs.push(titleParagraph);
 
-    // Đoạn chứa trường TOC của Microsoft Word
+    // Trường TOC
     const tocParagraph = doc.createElementNS(W_NS, "w:p");
-    const tocRun = doc.createElementNS(W_NS, "w:r");
 
+    const beginRun = doc.createElementNS(W_NS, "w:r");
     const beginField = doc.createElementNS(W_NS, "w:fldChar");
     setWAttribute(beginField, "fldCharType", "begin");
-    tocRun.appendChild(beginField);
-    tocParagraph.appendChild(tocRun);
+    beginRun.appendChild(beginField);
+    tocParagraph.appendChild(beginRun);
 
-    const instructionRun = doc.createElementNS(W_NS, "w:r");
-    const instruction = doc.createElementNS(W_NS, "w:instrText");
-    instruction.setAttributeNS(
+    const instrRun = doc.createElementNS(W_NS, "w:r");
+    const instr = doc.createElementNS(W_NS, "w:instrText");
+    instr.setAttributeNS(
         "http://www.w3.org/XML/1998/namespace",
         "xml:space",
         "preserve",
     );
-    instruction.appendChild(
+    instr.appendChild(
         doc.createTextNode(` TOC \\o "1-${maxLevel}" \\h \\z \\u `),
     );
-    instructionRun.appendChild(instruction);
-    tocParagraph.appendChild(instructionRun);
+    instrRun.appendChild(instr);
+    tocParagraph.appendChild(instrRun);
 
-    const separateRun = doc.createElementNS(W_NS, "w:r");
-    const separateField = doc.createElementNS(W_NS, "w:fldChar");
-    setWAttribute(separateField, "fldCharType", "separate");
-    separateRun.appendChild(separateField);
-    tocParagraph.appendChild(separateRun);
+    const sepRun = doc.createElementNS(W_NS, "w:r");
+    const sepField = doc.createElementNS(W_NS, "w:fldChar");
+    setWAttribute(sepField, "fldCharType", "separate");
+    sepRun.appendChild(sepField);
+    tocParagraph.appendChild(sepRun);
 
-    // Nội dung hướng dẫn cập nhật mục lục
     const placeholderRun = doc.createElementNS(W_NS, "w:r");
     const placeholderText = doc.createElementNS(W_NS, "w:t");
     placeholderText.appendChild(
-        doc.createTextNode("Nhấn chuột phải và chọn Update Field để cập nhật mục lục."),
+        doc.createTextNode(
+            "Nhấn chuột phải → Update Field để cập nhật mục lục.",
+        ),
     );
     placeholderRun.appendChild(placeholderText);
     tocParagraph.appendChild(placeholderRun);
@@ -1200,7 +1149,6 @@ function createTableOfContentsParagraphs(
     tocParagraph.appendChild(endRun);
 
     paragraphs.push(tocParagraph);
-
     return paragraphs;
 }
 
@@ -1210,21 +1158,20 @@ async function applyTableOfContents(
     rules: DocxFormattingRules,
 ): Promise<void> {
     const options = rules.tableOfContents;
-
     if (!options?.enabled) return;
 
     const body = elementsByTag(document, "body")[0];
-
     if (!body) {
-        throw new Error("Không tìm thấy nội dung chính của tài liệu Word.");
+        throw new Error(
+            "Không tìm thấy nội dung chính của tài liệu Word.",
+        );
     }
 
-    // Tránh chèn trùng mục lục khi xử lý tài liệu đã có TOC.
+    // Tránh chèn trùng
     const existingInstructions = elementsByTag(document, "instrText");
-    const hasExistingToc = existingInstructions.some((element) =>
-        (element.textContent ?? "").includes("TOC"),
+    const hasExistingToc = existingInstructions.some((el) =>
+        (el.textContent ?? "").includes("TOC"),
     );
-
     if (hasExistingToc) {
         throw new Error(
             "Tài liệu đã có trường mục lục. Vui lòng cập nhật mục lục hiện có trong Word trước khi tạo lại.",
@@ -1241,7 +1188,6 @@ async function applyTableOfContents(
     );
 
     const firstContent = body.firstChild;
-
     for (const paragraph of paragraphs) {
         if (firstContent) {
             body.insertBefore(paragraph, firstContent);
@@ -1250,30 +1196,27 @@ async function applyTableOfContents(
         }
     }
 
-    // Bật cập nhật trường khi mở tài liệu nếu settings.xml tồn tại.
+    // Bật updateFields
     const settingsPath = "word/settings.xml";
     const settingsFile = zip.file(settingsPath);
-
     if (settingsFile) {
         const settingsDoc = parseXml(
             await settingsFile.async("string"),
             settingsPath,
         );
-
         const settingsRoot = settingsDoc.documentElement;
-
         if (settingsRoot) {
             const updateFields = getOrCreateChild(
                 settingsDoc,
                 settingsRoot,
                 "updateFields",
             );
-
             setWAttribute(updateFields, "val", "true");
             zip.file(settingsPath, serializeXml(settingsDoc));
         }
     }
 }
+
 function serializeXml(doc: XmlDocument): string {
     return new XMLSerializer().serializeToString(doc);
 }
@@ -1284,12 +1227,9 @@ export async function formatDocx(
 ): Promise<Buffer> {
     assertRules(rules);
 
-    const zip = await JSZip.loadAsync(input, {
-        checkCRC32: true,
-    });
+    const zip = await JSZip.loadAsync(input, { checkCRC32: true });
 
     const documentFile = zip.file("word/document.xml");
-
     if (!documentFile) {
         throw new Error("DOCX không có word/document.xml.");
     }
@@ -1302,39 +1242,26 @@ export async function formatDocx(
         fontSize: rules.fontSize,
     };
 
+    // 1. Đoạn văn + font/size trực tiếp trên mọi run
     const paragraphs = elementsByTag(document, "p");
-
     for (const paragraph of paragraphs) {
         applyParagraphFormatting(document, paragraph, rules);
-
-        // Chỉ định dạng các run thuộc đoạn hiện tại, tránh áp dụng lặp
-        // lên run nằm trong các đoạn con của textbox hoặc thành phần lồng nhau.
-        for (let i = 0; i < paragraph.childNodes.length; i++) {
-            const node = paragraph.childNodes.item(i);
-
-            if (
-                node?.nodeType !== 1 ||
-                (node as XmlElement).namespaceURI !== W_NS ||
-                (node as XmlElement).localName !== "r"
-            ) {
-                continue;
-            }
-
-            const run = node as XmlElement;
-            const rPr = getOrCreateChild(document, run, "rPr");
-
-            applyRunFormatting(document, rPr, runRules);
-        }
+        applyRunFormattingToParagraph(document, paragraph, runRules);
     }
+
+    // 2. Ghi đè styles.xml (docDefaults + Normal + Heading + xóa theme)
+    await applyDefaultStyles(zip, rules);
+
+    // 3. Lề trang
     applyPageMargins(document, rules);
 
+    // 4. Các tính năng còn lại
     await applyPageNumbering(zip, document, rules);
-
     await applyHeadingNumbering(zip, document, rules);
-
     await applyTableOfContents(zip, document, rules);
 
     zip.file("word/document.xml", serializeXml(document));
+
     return zip.generateAsync({
         type: "nodebuffer",
         compression: "DEFLATE",
