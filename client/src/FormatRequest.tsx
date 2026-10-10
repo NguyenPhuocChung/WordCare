@@ -13,7 +13,7 @@ import {
 import "./FormatRequest.css";
 
 const API_BASE_URL =
-    import.meta.env.VITE_API_BASE_URL ?? "http://localhost:3000";
+    import.meta.env.VITE_API_BASE_URL ?? "https://wordcare.onrender.com";
 
 type Alignment = "left" | "center" | "right" | "justify";
 type PageAlignment = "left" | "center" | "right";

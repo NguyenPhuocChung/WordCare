@@ -16,7 +16,7 @@ import {
 import "./App.css";
 import FormatRequest from "./FormatRequest";
 const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ?? "http://localhost:3000";
+  import.meta.env.VITE_API_BASE_URL ?? "https://wordcare.onrender.com";
 
 const MAX_FILE_BYTES = 50 * 1024 * 1024; // 50 MiB
 type ValidationResult = {
